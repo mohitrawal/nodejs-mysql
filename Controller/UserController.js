@@ -2,7 +2,8 @@ const User = require("../Models/User");
 const knex = require('../Database/knex');
 const bcrypt = require("bcrypt");
 const { validationResult } = require('express-validator');
-
+var jwt = require('jsonwebtoken');
+const Privatekey = "MOHITRAWAL";
 module.exports = {
     create: async function(req, res, next) {
         const errors = validationResult(req);
@@ -58,5 +59,38 @@ module.exports = {
     },
     updateUser: function(req,res,next){
         
-    }
+    },
+    login: function(req, res, next) {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.status(422).json({ errors: errors.array() });
+            return;
+        }
+        
+        knex('users').where({user_username: req.body.username}).first().then(function(user){
+            console.log('usr',user)
+            if (!user) {
+                return res.json({
+                    status:200,
+                    message:"user not found"
+                })    
+            }
+            bcrypt.compare(req.body.password, user.user_password).then(isAuthenticated => {
+                if(!isAuthenticated){
+                    return res.status(401).json({
+                        error: "Unauthorized Access!"
+                    })
+                }else{
+                    return jwt.sign({username:user.user_username}, Privatekey, (error, token) => {
+                        res.status(200).json({token})
+                    })
+                }
+            })
+        }).catch(function(error) {
+            return res.json({
+                error : error,
+                status:400
+            })
+        });
+    },
 }
